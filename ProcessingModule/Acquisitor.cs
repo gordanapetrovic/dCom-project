@@ -55,8 +55,36 @@ namespace ProcessingModule
         /// Acquisitor thread logic.
         /// </summary>
 		private void Acquisition_DoWork()
-		{
-            //TO DO: IMPLEMENT
+        {
+            while (true)
+            {
+                acquisitionTrigger.WaitOne();
+
+                foreach (IConfigItem item in configuration.GetConfigurationItems())
+                {
+                    item.SecondsPassedSinceLastPoll++;
+
+                    if (item.SecondsPassedSinceLastPoll >= item.AcquisitionInterval)
+                    {
+                        try
+                        {
+                            processingManager.ExecuteReadCommand(
+                                item,
+                                configuration.GetTransactionId(),
+                                configuration.UnitAddress,
+                                item.StartAddress,
+                                item.NumberOfRegisters);
+
+                            item.SecondsPassedSinceLastPoll = 0;
+                        }
+                        catch (Exception ex)
+                        {
+                            string message = $"{ex.TargetSite.ReflectedType.Name}.{ex.TargetSite.Name}: {ex.Message}";
+                            stateUpdater.LogMessage(message);
+                        }
+                    }
+                }
+            }
         }
 
         #endregion Private Methods

@@ -24,15 +24,48 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc />
         public override byte[] PackRequest()
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            ModbusReadCommandParameters p = (ModbusReadCommandParameters)this.CommandParameters;
+
+            byte[] message = new byte[12];
+            message[0] = (byte)(p.TransactionId >> 8);
+            message[1] = (byte)p.TransactionId;
+            message[2] = 0;
+            message[3] = 0;
+            message[4] = 0;
+            message[5] = 6;
+            message[6] = p.UnitId;
+            message[7] = p.FunctionCode;
+            message[8] = (byte)(p.StartAddress >> 8);
+            message[9] = (byte)p.StartAddress;
+            message[10] = (byte)(p.Quantity >> 8);
+            message[11] = (byte)p.Quantity;
+
+            return message;
         }
 
         /// <inheritdoc />
         public override Dictionary<Tuple<PointType, ushort>, ushort> ParseResponse(byte[] response)
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            ModbusReadCommandParameters p = (ModbusReadCommandParameters)this.CommandParameters;
+
+            if (response[7] == (byte)(p.FunctionCode + 0x80))
+            {
+                HandeException(response[8]);
+            }
+
+            Dictionary<Tuple<PointType, ushort>, ushort> result = new Dictionary<Tuple<PointType, ushort>, ushort>();
+
+            for (int i = 0; i < p.Quantity; i++)
+            {
+                int byteIndex = 9 + (i / 8);
+                int bitIndex = i % 8;
+                ushort value = (ushort)(((response[byteIndex] >> bitIndex) & 0x01) == 1 ? 1 : 0);
+                ushort address = (ushort)(p.StartAddress + i);
+
+                result.Add(new Tuple<PointType, ushort>(PointType.DIGITAL_INPUT, address), value);
+            }
+
+            return result;
         }
     }
 }
